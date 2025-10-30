@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1024 1024'>
+  <!-- schwarzer Hintergrund -->
+  <rect width='1024' height='1024' fill='#000000'/>
+  <!-- rotes K -->
+  <path d='M180 180 L340 180 L340 470 L560 180 L760 180 L520 460 L770 820 L560 820 L380 550 L340 600 L340 820 L180 820 Z'
+        fill='#E53935'/>
+  <!-- weißer Blitz oben drüber -->
+  <path d='M560 160 L420 500 L540 500 L460 860 L700 420 L580 420 Z'
+        fill='#FFFFFF'/>
+</svg>
