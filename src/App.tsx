@@ -1566,6 +1566,7 @@ export default function App() {
           >
             Dashboard
           </button>
+
           <button
             className={`px-3 py-2 rounded-xl ${
               tab.tab === "training"
@@ -1576,6 +1577,7 @@ export default function App() {
           >
             Training
           </button>
+
           <button
             className={`px-3 py-2 rounded-xl ${
               tab.tab === "exercises"
@@ -1586,6 +1588,7 @@ export default function App() {
           >
             Übungen
           </button>
+
           <button
             className={`px-3 py-2 rounded-xl ${
               tab.tab === "plans"
@@ -1596,6 +1599,7 @@ export default function App() {
           >
             Pläne
           </button>
+
           <button
             className={`px-3 py-2 rounded-xl ${
               tab.tab === "goals"
@@ -1606,6 +1610,7 @@ export default function App() {
           >
             Ziele
           </button>
+
           <button
             className={`px-3 py-2 rounded-xl ${
               tab.tab === "backups"
@@ -1619,14 +1624,6 @@ export default function App() {
         </div>
       </header>
 
-        {showUpdate && (
-  <UpdateBanner
-    onReload={() => {
-      localStorage.setItem(APP_VERSION_KEY, APP_VERSION);
-      location.reload();
-    }}
-  />
-)}
         
         {tab.tab === "dashboard" && (
           <Dashboard exercises={exercises} logs={logs} goals={goals} />
@@ -1749,6 +1746,7 @@ export default function App() {
     </div>
   );
 }
+
 
 
 
