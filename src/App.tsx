@@ -28,6 +28,60 @@ import {
   HardDriveDownload,
 } from "lucide-react";
 
+// --- Version / Update-Hinweis ---
+const APP_VERSION = "1.3.2";               // bei neuem Deploy hochzählen
+const APP_VERSION_KEY = "kraftwerk_version";
+
+function VersionBanner({
+  version,
+  latestVersion,
+  onReload,
+}: {
+  version: string;
+  latestVersion: string;
+  onReload: () => void;
+}) {
+  const isUpToDate = version === latestVersion;
+
+  return (
+    <div
+      className={`${
+        isUpToDate
+          ? "bg-emerald-50 border-emerald-300 text-emerald-800"
+          : "bg-amber-50 border-amber-300 text-amber-800"
+      } border px-4 py-2 rounded-xl mb-4 flex items-center justify-between shadow-sm`}
+    >
+      <span className="font-medium">
+        {isUpToDate ? (
+          <>✅ KraftWerk v{latestVersion} – Aktuellste Version installiert</>
+        ) : (
+          <>⚠️ Neue Version verfügbar (v{latestVersion})</>
+        )}
+      </span>
+
+      {isUpToDate ? (
+        <button
+          onClick={() =>
+            window.dispatchEvent(
+              new CustomEvent("tp_toast", { detail: "App ist aktuell" })
+            )
+          }
+          className="text-sm font-semibold text-emerald-700 hover:underline"
+        >
+          Neu prüfen
+        </button>
+      ) : (
+        <button
+          onClick={onReload}
+          className="text-sm font-semibold text-amber-700 hover:underline"
+        >
+          Jetzt aktualisieren
+        </button>
+      )}
+    </div>
+  );
+}
+
 /**
  * KraftWerk – Offline / lokal
  * - untere Tabbar: Dashboard, Training, Übungen, Pläne, Ziele, Backups
@@ -1334,36 +1388,22 @@ function VersionBanner({
 
 export default function App() {
   useFixedBranding();
+  useDoubleExitGuard(true);
 
-  // Version aus localStorage holen (oder "0.0.0", falls noch nie gespeichert)
+  // gespeicherte Version holen (oder "0.0.0", wenn noch nie da gewesen)
   const [storedVersion, setStoredVersion] = React.useState<string>(
     localStorage.getItem(APP_VERSION_KEY) || "0.0.0"
   );
 
-  // beim ersten Mount: wenn nichts da → aktuelle Version speichern
+  // beim ersten Start lokale Version setzen
   React.useEffect(() => {
-    if (!localStorage.getItem(APP_VERSION_KEY)) {
+    const saved = localStorage.getItem(APP_VERSION_KEY);
+    if (!saved) {
       localStorage.setItem(APP_VERSION_KEY, APP_VERSION);
       setStoredVersion(APP_VERSION);
     }
   }, []);
-
-  const [showUpdate, setShowUpdate] = React.useState(false);
-
-  React.useEffect(() => {
-    const saved = localStorage.getItem(APP_VERSION_KEY);
-    if (!saved) {
-      // erstes Mal → aktuelle Version merken
-      localStorage.setItem(APP_VERSION_KEY, APP_VERSION);
-    } else if (saved !== APP_VERSION) {
-      // es gibt eine neuere Version im Code → Hinweis anzeigen
-      setShowUpdate(true);
-      // aber NICHT sofort überschreiben – erst nach Reload
-    }
-  }, []);
-
-  // ... dein bisheriger Code
-
+  
   // Seed beim ersten Mal
   useEffect(() => {
     if (!localStorage.getItem(STORAGE_KEYS.SEEDED)) {
@@ -1489,70 +1529,95 @@ export default function App() {
 
   return (
   <div className="min-h-screen bg-slate-50 text-slate-900 pb-20">
-    {/* Versions-Info / Update-Hinweis */}
+    {/* Versions- / Update-Info */}
     <VersionBanner
       version={storedVersion}
       latestVersion={APP_VERSION}
       onReload={() => {
-        // wenn Nutzer auf "Jetzt aktualisieren" klickt:
         localStorage.setItem(APP_VERSION_KEY, APP_VERSION);
         location.reload();
       }}
     />
-            {APP_NAME}
-          </h1>
-          {/* Desktop-Navigation (optional) */}
-          <div className="hidden sm:flex gap-2">
-            <button
-              onClick={() => setTab({ tab: "dashboard" })}
-              className={`px-3 py-2 rounded-xl ${
-                tab.tab === "dashboard" ? "bg-white shadow" : "bg-slate-100"
-              }`}
-            >
-              Dashboard
-            </button>
-            <button
-              onClick={() => setTab({ tab: "training" })}
-              className={`px-3 py-2 rounded-xl ${
-                tab.tab === "training" ? "bg-white shadow" : "bg-slate-100"
-              }`}
-            >
-              Training
-            </button>
-            <button
-              onClick={() => setTab({ tab: "exercises" })}
-              className={`px-3 py-2 rounded-xl ${
-                tab.tab === "exercises" ? "bg-white shadow" : "bg-slate-100"
-              }`}
-            >
-              Übungen
-            </button>
-            <button
-              onClick={() => setTab({ tab: "plans" })}
-              className={`px-3 py-2 rounded-xl ${
-                tab.tab === "plans" ? "bg-white shadow" : "bg-slate-100"
-              }`}
-            >
-              Pläne
-            </button>
-            <button
-              onClick={() => setTab({ tab: "goals" })}
-              className={`px-3 py-2 rounded-xl ${
-                tab.tab === "goals" ? "bg-white shadow" : "bg-slate-100"
-              }`}
-            >
-              Ziele
-            </button>
-            <button
-              onClick={() => setTab({ tab: "backups" })}
-              className={`px-3 py-2 rounded-xl ${
-                tab.tab === "backups" ? "bg-white shadow" : "bg-slate-100"
-              }`}
-            >
-              Backups
-            </button>
-          </div>
-        </header>
+
+    <div className="max-w-5xl mx-auto p-4 sm:p-6">
+      <header className="flex items-center justify-between mb-6">
+        <h1 className="text-2xl sm:text-3xl font-bold flex items-center gap-3">
+          <span
+            className="inline-block"
+            dangerouslySetInnerHTML={{
+              __html: FIXED_FAVICON_SVG.replace(
+                "<svg",
+                '<svg width="28" height="28"'
+              ),
+            }}
+          />
+          {APP_NAME}
+        </h1>
+
+        {/* Desktop-Navigation */}
+        <div className="flex items-center gap-2">
+          <button
+            className={`px-3 py-2 rounded-xl ${
+              tab.tab === "dashboard"
+                ? "bg-white shadow-lg shadow-rose-200 border border-rose-300"
+                : "bg-slate-100"
+            }`}
+            onClick={() => setTab({ tab: "dashboard" })}
+          >
+            Dashboard
+          </button>
+          <button
+            className={`px-3 py-2 rounded-xl ${
+              tab.tab === "training"
+                ? "bg-white shadow-lg shadow-rose-200 border border-rose-300"
+                : "bg-slate-100"
+            }`}
+            onClick={() => setTab({ tab: "training" })}
+          >
+            Training
+          </button>
+          <button
+            className={`px-3 py-2 rounded-xl ${
+              tab.tab === "exercises"
+                ? "bg-white shadow-lg shadow-rose-200 border border-rose-300"
+                : "bg-slate-100"
+            }`}
+            onClick={() => setTab({ tab: "exercises" })}
+          >
+            Übungen
+          </button>
+          <button
+            className={`px-3 py-2 rounded-xl ${
+              tab.tab === "plans"
+                ? "bg-white shadow-lg shadow-rose-200 border border-rose-300"
+                : "bg-slate-100"
+            }`}
+            onClick={() => setTab({ tab: "plans" })}
+          >
+            Pläne
+          </button>
+          <button
+            className={`px-3 py-2 rounded-xl ${
+              tab.tab === "goals"
+                ? "bg-white shadow-lg shadow-rose-200 border border-rose-300"
+                : "bg-slate-100"
+            }`}
+            onClick={() => setTab({ tab: "goals" })}
+          >
+            Ziele
+          </button>
+          <button
+            className={`px-3 py-2 rounded-xl ${
+              tab.tab === "backups"
+                ? "bg-white shadow-lg shadow-rose-200 border border-rose-300"
+                : "bg-slate-100"
+            }`}
+            onClick={() => setTab({ tab: "backups" })}
+          >
+            Backups
+          </button>
+        </div>
+      </header>
 
         {showUpdate && (
   <UpdateBanner
@@ -1684,5 +1749,6 @@ export default function App() {
     </div>
   );
 }
+
 
 
