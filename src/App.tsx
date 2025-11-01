@@ -1,5 +1,3 @@
-const APP_VERSION = "1.3.2";               // <– hier später einfach hochzählen
-const APP_VERSION_KEY = "kraftwerk_version";
 import React, { useEffect, useMemo, useState } from "react";
 import {
   LineChart,
@@ -28,60 +26,6 @@ import {
   HardDriveDownload,
 } from "lucide-react";
 
-// --- Version / Update-Hinweis ---
-const APP_VERSION = "1.3.2";               // bei neuem Deploy hochzählen
-const APP_VERSION_KEY = "kraftwerk_version";
-
-function VersionBanner({
-  version,
-  latestVersion,
-  onReload,
-}: {
-  version: string;
-  latestVersion: string;
-  onReload: () => void;
-}) {
-  const isUpToDate = version === latestVersion;
-
-  return (
-    <div
-      className={`${
-        isUpToDate
-          ? "bg-emerald-50 border-emerald-300 text-emerald-800"
-          : "bg-amber-50 border-amber-300 text-amber-800"
-      } border px-4 py-2 rounded-xl mb-4 flex items-center justify-between shadow-sm`}
-    >
-      <span className="font-medium">
-        {isUpToDate ? (
-          <>✅ KraftWerk v{latestVersion} – Aktuellste Version installiert</>
-        ) : (
-          <>⚠️ Neue Version verfügbar (v{latestVersion})</>
-        )}
-      </span>
-
-      {isUpToDate ? (
-        <button
-          onClick={() =>
-            window.dispatchEvent(
-              new CustomEvent("tp_toast", { detail: "App ist aktuell" })
-            )
-          }
-          className="text-sm font-semibold text-emerald-700 hover:underline"
-        >
-          Neu prüfen
-        </button>
-      ) : (
-        <button
-          onClick={onReload}
-          className="text-sm font-semibold text-amber-700 hover:underline"
-        >
-          Jetzt aktualisieren
-        </button>
-      )}
-    </div>
-  );
-}
-
 /**
  * KraftWerk – Offline / lokal
  * - untere Tabbar: Dashboard, Training, Übungen, Pläne, Ziele, Backups
@@ -90,8 +34,12 @@ function VersionBanner({
  * - Eingabemasken mit "abschließen" → wird grün
  * - Dashboard mit KW-Achsen (Training, Cardio, Outdoor, 1RM)
  * - Backups (localStorage, max. 5)
- * - festes Icon (rotes K, weißer Blitz, schwarzer Hintergrund)
+ * - festes Icon (schwarz, rotes K, weißer Blitz)
  */
+
+// ====== Konstante App-Version (für Info-Banner) ======
+const APP_VERSION = "1.5.0";
+const APP_VERSION_KEY = "kraftwerk_version";
 
 const APP_NAME = "KraftWerk";
 const BRAND = { primary: "#E53935", dark: "#000000", success: "#22c55e" };
@@ -107,37 +55,87 @@ const FIXED_FAVICON_SVG = `<?xml version="1.0" encoding="UTF-8"?>
 function useFixedBranding() {
   useEffect(() => {
     document.title = APP_NAME;
-    const theme = document.querySelector("meta[name='theme-color']") || document.createElement("meta");
+    const theme =
+      document.querySelector("meta[name='theme-color']") ||
+      document.createElement("meta");
     theme.setAttribute("name", "theme-color");
     theme.setAttribute("content", BRAND.dark);
     document.head.appendChild(theme);
 
-    const fav = document.querySelector("link[rel='icon']") || document.createElement("link");
+    const fav =
+      document.querySelector("link[rel='icon']") ||
+      document.createElement("link");
     fav.setAttribute("rel", "icon");
     fav.setAttribute("type", "image/svg+xml");
-    fav.setAttribute("href", "data:image/svg+xml;utf8," + encodeURIComponent(FIXED_FAVICON_SVG));
+    fav.setAttribute(
+      "href",
+      "data:image/svg+xml;utf8," + encodeURIComponent(FIXED_FAVICON_SVG)
+    );
     document.head.appendChild(fav);
   }, []);
 }
 
-const uuid = () => Math.random().toString(36).slice(2) + Date.now().toString(36);
+// ====== Double-Exit-Guard (Android, „nochmal drücken“) ======
+function useDoubleExitGuard(enabled: boolean = true) {
+  useEffect(() => {
+    if (!enabled) return;
+    let armed = false;
+    let timer: any = null;
+
+    const onPop = (e: PopStateEvent) => {
+      if (!armed) {
+        e.preventDefault?.();
+        history.pushState(null, "", location.href);
+        window.dispatchEvent(
+          new CustomEvent("tp_toast", {
+            detail: "Zum Schließen bitte erneut drücken",
+          })
+        );
+        armed = true;
+        timer = setTimeout(() => (armed = false), 1500);
+      } else {
+        if (timer) clearTimeout(timer);
+        window.removeEventListener("popstate", onPop);
+        history.back();
+      }
+    };
+
+    history.pushState(null, "", location.href);
+    window.addEventListener("popstate", onPop);
+
+    return () => {
+      window.removeEventListener("popstate", onPop);
+      if (timer) clearTimeout(timer);
+    };
+  }, [enabled]);
+}
+
+// ====== kleine Utils ======
+const uuid = () =>
+  Math.random().toString(36).slice(2) + Date.now().toString(36);
 const todayISO = () => new Date().toISOString().slice(0, 10);
 
 function getISOWeek(date: Date) {
-  const d = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+  const d = new Date(
+    Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate())
+  );
   d.setUTCDate(d.getUTCDate() + 4 - ((d.getUTCDay() + 6) % 7));
   const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
   return Math.ceil(((+d - +yearStart) / 86400000 + 1) / 7);
 }
 function getISOWeekYear(date: Date) {
-  const d = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+  const d = new Date(
+    Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate())
+  );
   d.setUTCDate(d.getUTCDate() + 4 - ((d.getUTCDay() + 6) % 7));
   return d.getUTCFullYear();
 }
 function startOfISOWeek(date: Date) {
   const d = new Date(date);
   const day = (d.getUTCDay() + 6) % 7;
-  const s = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+  const s = new Date(
+    Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate())
+  );
   s.setUTCDate(s.getUTCDate() - day);
   return s;
 }
@@ -151,6 +149,7 @@ function oneRM(weight: number, reps: number) {
   return Math.round(weight * (1 + reps / 30));
 }
 
+// ====== Types ======
 type ExerciseType = "kraft" | "cardio" | "outdoor";
 type Exercise = { id: string; name: string; type: ExerciseType };
 type Plan = { id: string; name: string; exerciseIds: string[] };
@@ -176,6 +175,7 @@ type Goals = {
   weeklyOutdoorKmTarget: number;
 };
 
+// ====== Storage Keys ======
 const STORAGE_KEYS = {
   EXERCISES: "tp_exercises",
   PLANS: "tp_plans",
@@ -186,6 +186,7 @@ const STORAGE_KEYS = {
   SEEDED: "tp_seed_v3",
 };
 
+// ====== Seed-Daten ======
 const seedExercises: Exercise[] = [
   // Kraft
   "Brustpresse",
@@ -203,7 +204,8 @@ const seedExercises: Exercise[] = [
   "Ruderzug",
   "Rückenstrecker",
   "Bauchpresse",
-].map((n) => ({ id: uuid(), name: n, type: "kraft" as const }))
+]
+  .map((n) => ({ id: uuid(), name: n, type: "kraft" as const }))
   .concat([
     // Cardio
     { id: uuid(), name: "Crosstrainer", type: "cardio" },
@@ -226,6 +228,7 @@ const defaultGoals: Goals = {
   weeklyOutdoorKmTarget: 30,
 };
 
+// ====== LocalStorage-Hook ======
 function useLocalStorage<T>(key: string, initial: T): [T, (v: T) => void] {
   const [state, setState] = useState<T>(() => {
     try {
@@ -243,6 +246,7 @@ function useLocalStorage<T>(key: string, initial: T): [T, (v: T) => void] {
   return [state, setState];
 }
 
+// ====== Toast ======
 function Toast() {
   const [msg, setMsg] = useState("");
   useEffect(() => {
@@ -261,21 +265,18 @@ function Toast() {
   );
 }
 
-function UpdateBanner({ onReload }: { onReload: () => void }) {
-  return (
-    <div className="fixed top-2 left-1/2 -translate-x-1/2 z-50 bg-rose-600 text-white px-4 py-2 rounded-xl shadow flex items-center gap-3">
-      <span>Neue Version verfügbar</span>
-      <button
-        onClick={onReload}
-        className="bg-white/15 hover:bg-white/25 px-3 py-1 rounded-lg text-sm"
-      >
-        Jetzt neu laden
-      </button>
-    </div>
-  );
-}
-
-function Section({ title, icon, children, right }: { title: string; icon?: React.ReactNode; children: React.ReactNode; right?: React.ReactNode }) {
+// ====== Abschnitt-Wrapper ======
+function Section({
+  title,
+  icon,
+  children,
+  right,
+}: {
+  title: string;
+  icon?: React.ReactNode;
+  children: React.ReactNode;
+  right?: React.ReactNode;
+}) {
   return (
     <div className="mb-6">
       <div className="flex items-center justify-between mb-3">
@@ -290,6 +291,7 @@ function Section({ title, icon, children, right }: { title: string; icon?: React
   );
 }
 
+// ====== ExerciseCard ======
 function ExerciseCard({
   exercise,
   logs,
@@ -332,7 +334,9 @@ function ExerciseCard({
   }, [last, exercise.type]);
 
   const avgSpeed =
-    exercise.type === "outdoor" && minutes > 0 ? Number((distanceKm / (minutes / 60)).toFixed(2)) : 0;
+    exercise.type === "outdoor" && minutes > 0
+      ? Number((distanceKm / (minutes / 60)).toFixed(2))
+      : 0;
 
   const colorCls = completed
     ? "bg-emerald-50 border-emerald-300"
@@ -367,16 +371,24 @@ function ExerciseCard({
                 planId: planId || null,
                 sets: exercise.type === "kraft" ? sets : [],
                 minutes: exercise.type !== "kraft" ? minutes : 0,
-                distanceKm: exercise.type === "outdoor" ? distanceKm : undefined,
-                elevationM: exercise.type === "outdoor" ? elevationM : undefined,
-                avgSpeedKmh: exercise.type === "outdoor" ? avgSpeed : undefined,
-                heartRate: exercise.type === "outdoor" ? (heartRate || undefined) : undefined,
+                distanceKm:
+                  exercise.type === "outdoor" ? distanceKm : undefined,
+                elevationM:
+                  exercise.type === "outdoor" ? elevationM : undefined,
+                avgSpeedKmh:
+                  exercise.type === "outdoor" ? avgSpeed : undefined,
+                heartRate:
+                  exercise.type === "outdoor"
+                    ? heartRate || undefined
+                    : undefined,
                 note: note?.trim() || "",
                 completed: true,
               };
               onLog(entry);
               window.dispatchEvent(
-                new CustomEvent("tp_toast", { detail: exercise.name + " abgeschlossen" })
+                new CustomEvent("tp_toast", {
+                  detail: exercise.name + " abgeschlossen",
+                })
               );
             }
           }}
@@ -402,9 +414,15 @@ function ExerciseCard({
           ) : exercise.type === "outdoor" ? (
             <div>
               {(last.minutes || 0) + " Min · " + (last.distanceKm || 0) + " km"}
-              {typeof last.avgSpeedKmh === "number" ? ` · Ø ${last.avgSpeedKmh} km/h` : ""}
-              {typeof last.elevationM === "number" ? ` · ${last.elevationM} hm` : ""}
-              {typeof last.heartRate === "number" ? ` · ${last.heartRate} bpm` : ""}
+              {typeof last.avgSpeedKmh === "number"
+                ? ` · Ø ${last.avgSpeedKmh} km/h`
+                : ""}
+              {typeof last.elevationM === "number"
+                ? ` · ${last.elevationM} hm`
+                : ""}
+              {typeof last.heartRate === "number"
+                ? ` · ${last.heartRate} bpm`
+                : ""}
             </div>
           ) : (
             <div>{last.minutes || 0} Min</div>
@@ -418,7 +436,9 @@ function ExerciseCard({
           {sets.map((s, idx) => (
             <div key={idx} className="grid grid-cols-2 gap-3">
               <label className="block">
-                <span className="text-sm text-slate-600">Satz {idx + 1} – Wdh.</span>
+                <span className="text-sm text-slate-600">
+                  Satz {idx + 1} – Wdh.
+                </span>
                 <input
                   type="number"
                   value={s.reps}
@@ -544,6 +564,7 @@ function ExerciseCard({
   );
 }
 
+// ====== Training View ======
 function TrainingView({
   exercises,
   plans,
@@ -559,7 +580,9 @@ function TrainingView({
 }) {
   const [mode, setMode] = useState<"plan" | "einzel">("plan");
   const [selectedPlan, setSelectedPlan] = useState(plans[0]?.id || "");
-  const [selectedExercise, setSelectedExercise] = useState(exercises[0]?.id || "");
+  const [selectedExercise, setSelectedExercise] = useState(
+    exercises[0]?.id || ""
+  );
 
   const plan = plans.find((p) => p.id === selectedPlan);
   const exercise = exercises.find((e) => e.id === selectedExercise);
@@ -654,6 +677,7 @@ function TrainingView({
   );
 }
 
+// ====== Übungen ======
 function ExercisesView({
   exercises,
   setExercises,
@@ -672,13 +696,16 @@ function ExercisesView({
     "Gravel-Bike",
     "Rennrad",
   ];
-  const missingOutdoor = OUTDOOR_SEED.filter((n) => !exercises.some((e) => e.name === n));
+  const missingOutdoor = OUTDOOR_SEED.filter(
+    (n) => !exercises.some((e) => e.name === n)
+  );
 
   function ensureOutdoor() {
     if (missingOutdoor.length === 0) return;
     const next = [...exercises];
     OUTDOOR_SEED.forEach((n) => {
-      if (!next.some((e) => e.name === n)) next.push({ id: uuid(), name: n, type: "outdoor" });
+      if (!next.some((e) => e.name === n))
+        next.push({ id: uuid(), name: n, type: "outdoor" });
     });
     setExercises(next);
   }
@@ -687,7 +714,9 @@ function ExercisesView({
     <div className="space-y-4">
       <div className="grid sm:grid-cols-3 items-end gap-3">
         <label className="block">
-          <span className="text-sm text-slate-600 mb-1 block">Name der Übung</span>
+          <span className="text-sm text-slate-600 mb-1 block">
+            Name der Übung
+          </span>
           <input
             className="w-full rounded-xl border px-3 py-2"
             value={name}
@@ -712,7 +741,10 @@ function ExercisesView({
           style={{ background: BRAND.primary }}
           onClick={() => {
             if (!name.trim()) return;
-            setExercises([...exercises, { id: uuid(), name: name.trim(), type }]);
+            setExercises([
+              ...exercises,
+              { id: uuid(), name: name.trim(), type },
+            ]);
             setName("");
           }}
         >
@@ -720,22 +752,34 @@ function ExercisesView({
         </button>
       </div>
       {missingOutdoor.length > 0 && (
-        <button className="px-4 py-2 rounded-xl bg-slate-100" onClick={ensureOutdoor}>
+        <button
+          className="px-4 py-2 rounded-xl bg-slate-100"
+          onClick={ensureOutdoor}
+        >
           Fehlende Outdoor-Übungen ergänzen ({missingOutdoor.length})
         </button>
       )}
       <div className="grid md:grid-cols-2 gap-3">
         {exercises.map((e) => (
-          <div key={e.id} className="flex items-center justify-between border rounded-xl p-3">
+          <div
+            key={e.id}
+            className="flex items-center justify-between border rounded-xl p-3"
+          >
             <div>
               <div className="font-medium">{e.name}</div>
               <div className="text-xs text-slate-500">
-                {e.type === "kraft" ? "Kraft" : e.type === "cardio" ? "Cardio" : "Outdoor"}
+                {e.type === "kraft"
+                  ? "Kraft"
+                  : e.type === "cardio"
+                  ? "Cardio"
+                  : "Outdoor"}
               </div>
             </div>
             <button
               className="p-2 rounded-lg bg-slate-100"
-              onClick={() => setExercises(exercises.filter((x) => x.id !== e.id))}
+              onClick={() =>
+                setExercises(exercises.filter((x) => x.id !== e.id))
+              }
             >
               <Trash2 className="w-4 h-4" />
             </button>
@@ -746,6 +790,7 @@ function ExercisesView({
   );
 }
 
+// ====== Pläne ======
 function PlansView({
   exercises,
   plans,
@@ -766,7 +811,9 @@ function PlansView({
     <div className="space-y-4">
       <div className="grid md:grid-cols-3 gap-3">
         <label className="block">
-          <span className="text-sm text-slate-600 mb-1 block">Name des Plans</span>
+          <span className="text-sm text-slate-600 mb-1 block">
+            Name des Plans
+          </span>
           <input
             className="w-full rounded-xl border px-3 py-2"
             value={name}
@@ -775,13 +822,17 @@ function PlansView({
           />
         </label>
         <label className="block">
-          <span className="text-sm text-slate-600 mb-1 block">Übungen wählen</span>
+          <span className="text-sm text-slate-600 mb-1 block">
+            Übungen wählen
+          </span>
           <select
             multiple
             className="w-full rounded-xl border px-3 py-2 min-h-32"
             value={selected}
             onChange={(e) => {
-              const opts = Array.from(e.target.selectedOptions).map((o) => o.value);
+              const opts = Array.from(e.target.selectedOptions).map(
+                (o) => o.value
+              );
               setSelected(opts);
             }}
           >
@@ -798,7 +849,10 @@ function PlansView({
             style={{ background: BRAND.primary }}
             onClick={() => {
               if (!name.trim()) return;
-              setPlans([...plans, { id: uuid(), name: name.trim(), exerciseIds: selected }]);
+              setPlans([
+                ...plans,
+                { id: uuid(), name: name.trim(), exerciseIds: selected },
+              ]);
               setName("");
               setSelected([]);
             }}
@@ -882,7 +936,14 @@ function PlansView({
   );
 }
 
-function GoalsView({ goals, setGoals }: { goals: Goals; setGoals: (v: Goals) => void }) {
+// ====== Ziele ======
+function GoalsView({
+  goals,
+  setGoals,
+}: {
+  goals: Goals;
+  setGoals: (v: Goals) => void;
+}) {
   const [days, setDays] = useState(goals.weeklyTrainingDaysTarget);
   const [cardio, setCardio] = useState(goals.weeklyCardioMinutesTarget);
   const [outDays, setOutDays] = useState(goals.weeklyOutdoorDaysTarget);
@@ -891,7 +952,9 @@ function GoalsView({ goals, setGoals }: { goals: Goals; setGoals: (v: Goals) => 
   return (
     <div className="grid md:grid-cols-2 gap-4">
       <label className="block">
-        <span className="text-sm text-slate-600">Ziel: Trainingstage/Woche</span>
+        <span className="text-sm text-slate-600">
+          Ziel: Trainingstage/Woche
+        </span>
         <input
           type="number"
           value={days}
@@ -900,7 +963,9 @@ function GoalsView({ goals, setGoals }: { goals: Goals; setGoals: (v: Goals) => 
         />
       </label>
       <label className="block">
-        <span className="text-sm text-slate-600">Ziel: Cardio-Minuten/Woche</span>
+        <span className="text-sm text-slate-600">
+          Ziel: Cardio-Minuten/Woche
+        </span>
         <input
           type="number"
           value={cardio}
@@ -909,7 +974,9 @@ function GoalsView({ goals, setGoals }: { goals: Goals; setGoals: (v: Goals) => 
         />
       </label>
       <label className="block">
-        <span className="text-sm text-slate-600">Ziel: Outdoor-Tage/Woche</span>
+        <span className="text-sm text-slate-600">
+          Ziel: Outdoor-Tage/Woche
+        </span>
         <input
           type="number"
           value={outDays}
@@ -918,7 +985,9 @@ function GoalsView({ goals, setGoals }: { goals: Goals; setGoals: (v: Goals) => 
         />
       </label>
       <label className="block">
-        <span className="text-sm text-slate-600">Ziel: Outdoor-Kilometer/Woche</span>
+        <span className="text-sm text-slate-600">
+          Ziel: Outdoor-Kilometer/Woche
+        </span>
         <input
           type="number"
           value={outKm}
@@ -946,8 +1015,8 @@ function GoalsView({ goals, setGoals }: { goals: Goals; setGoals: (v: Goals) => 
   );
 }
 
+// ====== Backups ======
 function BackupsView({
-  data,
   onRestore,
   onCreate,
   backups,
@@ -955,7 +1024,6 @@ function BackupsView({
   onDownload,
   lastBackupAt,
 }: {
-  data: any;
   onRestore: (name: string) => void;
   onCreate: () => void;
   backups: any[];
@@ -972,16 +1040,24 @@ function BackupsView({
             Max. 5 Backups. Älteste wird ersetzt. Daten bleiben lokal.
           </div>
         </div>
-        <button className="px-3 py-2 rounded-xl bg-slate-100" onClick={onCreate}>
+        <button
+          className="px-3 py-2 rounded-xl bg-slate-100"
+          onClick={onCreate}
+        >
           Backup jetzt anlegen
         </button>
       </div>
       <div className="border rounded-xl divide-y">
         {backups.length === 0 ? (
-          <div className="p-3 text-slate-500 text-sm">Noch keine Sicherungen vorhanden.</div>
+          <div className="p-3 text-slate-500 text-sm">
+            Noch keine Sicherungen vorhanden.
+          </div>
         ) : (
           backups.map((b) => (
-            <div key={b.name} className="p-3 flex items-center justify-between gap-3">
+            <div
+              key={b.name}
+              className="p-3 flex items-center justify-between gap-3"
+            >
               <div>
                 <div className="font-medium">{b.name}</div>
                 <div className="text-xs text-slate-500">
@@ -989,13 +1065,22 @@ function BackupsView({
                 </div>
               </div>
               <div className="flex gap-2">
-                <button className="px-3 py-1.5 rounded-lg bg-slate-100" onClick={() => onDownload(b.name)}>
+                <button
+                  className="px-3 py-1.5 rounded-lg bg-slate-100"
+                  onClick={() => onDownload(b.name)}
+                >
                   Download
                 </button>
-                <button className="px-3 py-1.5 rounded-lg bg-slate-100" onClick={() => onRestore(b.name)}>
+                <button
+                  className="px-3 py-1.5 rounded-lg bg-slate-100"
+                  onClick={() => onRestore(b.name)}
+                >
                   Wiederherstellen
                 </button>
-                <button className="px-3 py-1.5 rounded-lg bg-slate-100" onClick={() => onDelete(b.name)}>
+                <button
+                  className="px-3 py-1.5 rounded-lg bg-slate-100"
+                  onClick={() => onDelete(b.name)}
+                >
                   Löschen
                 </button>
               </div>
@@ -1004,12 +1089,14 @@ function BackupsView({
         )}
       </div>
       <div className="text-xs text-slate-500">
-        Zuletzt gesichert: {lastBackupAt ? new Date(lastBackupAt).toLocaleString() : "–"}
+        Zuletzt gesichert:{" "}
+        {lastBackupAt ? new Date(lastBackupAt).toLocaleString() : "–"}
       </div>
     </div>
   );
 }
 
+// ====== Dashboard ======
 function Dashboard({
   exercises,
   logs,
@@ -1046,7 +1133,10 @@ function Dashboard({
       const outdoorMinutes = outLogs.reduce((s, l) => s + (l.minutes || 0), 0);
       const outdoorAvgSpeed = outLogs.length
         ? Number(
-            (outLogs.reduce((s, l) => s + (l.avgSpeedKmh || 0), 0) / outLogs.length).toFixed(2)
+            (
+              outLogs.reduce((s, l) => s + (l.avgSpeedKmh || 0), 0) /
+              outLogs.length
+            ).toFixed(2)
           )
         : 0;
 
@@ -1071,7 +1161,7 @@ function Dashboard({
         map[l.exerciseId] = Math.max(map[l.exerciseId] || 0, est);
       })
     );
-    return Object.entries(map)
+  return Object.entries(map)
       .map(([eid, max]) => ({
         exercise: exercises.find((e) => e.id === eid)?.name || "?",
         max,
@@ -1097,16 +1187,32 @@ function Dashboard({
     const outdoorKm = outLogs.reduce((s, l) => s + (l.distanceKm || 0), 0);
 
     const daysPct = goals.weeklyTrainingDaysTarget
-      ? Math.min(100, Math.round((trainingDays / goals.weeklyTrainingDaysTarget) * 100))
+      ? Math.min(
+          100,
+          Math.round(
+            (trainingDays / goals.weeklyTrainingDaysTarget) * 100
+          )
+        )
       : 0;
     const cardioPct = goals.weeklyCardioMinutesTarget
-      ? Math.min(100, Math.round((cardioMinutes / goals.weeklyCardioMinutesTarget) * 100))
+      ? Math.min(
+          100,
+          Math.round(
+            (cardioMinutes / goals.weeklyCardioMinutesTarget) * 100
+          )
+        )
       : 0;
     const outDaysPct = goals.weeklyOutdoorDaysTarget
-      ? Math.min(100, Math.round((outdoorDays / goals.weeklyOutdoorDaysTarget) * 100))
+      ? Math.min(
+          100,
+          Math.round((outdoorDays / goals.weeklyOutdoorDaysTarget) * 100)
+        )
       : 0;
     const outKmPct = goals.weeklyOutdoorKmTarget
-      ? Math.min(100, Math.round((outdoorKm / goals.weeklyOutdoorKmTarget) * 100))
+      ? Math.min(
+          100,
+          Math.round((outdoorKm / goals.weeklyOutdoorKmTarget) * 100)
+        )
       : 0;
 
     return {
@@ -1131,7 +1237,10 @@ function Dashboard({
     logs
       .filter((l) => l.exerciseId === selExercise)
       .forEach((l) => {
-        const best = Math.max(0, ...(l.sets || []).map((s) => oneRM(s.weight, s.reps)));
+        const best = Math.max(
+          0,
+          ...(l.sets || []).map((s) => oneRM(s.weight, s.reps))
+        );
         const d = new Date(l.date + "T00:00:00Z");
         const wk = getISOWeek(d);
         const yr = getISOWeekYear(d);
@@ -1147,7 +1256,10 @@ function Dashboard({
 
   return (
     <div className="space-y-6">
-      <Section title="Wochen-Trends – Training & Cardio" icon={<Play className="w-5 h-5" />}>
+      <Section
+        title="Wochen-Trends – Training & Cardio"
+        icon={<Play className="w-5 h-5" />}
+      >
         <div className="grid lg:grid-cols-2 gap-4">
           <div className="h-60">
             <ResponsiveContainer width="100%" height="100%">
@@ -1157,7 +1269,12 @@ function Dashboard({
                 <YAxis allowDecimals={false} tick={{ fontSize: 10 }} />
                 <Tooltip />
                 <Legend />
-                <Line type="monotone" dataKey="trainingDays" name="Trainingstage" stroke="#ef4444" />
+                <Line
+                  type="monotone"
+                  dataKey="trainingDays"
+                  name="Trainingstage"
+                  stroke="#ef4444"
+                />
               </LineChart>
             </ResponsiveContainer>
           </div>
@@ -1169,7 +1286,12 @@ function Dashboard({
                 <YAxis tick={{ fontSize: 10 }} />
                 <Tooltip />
                 <Legend />
-                <Line type="monotone" dataKey="cardioMinutes" name="Cardio-Minuten" stroke="#0ea5e9" />
+                <Line
+                  type="monotone"
+                  dataKey="cardioMinutes"
+                  name="Cardio-Minuten"
+                  stroke="#0ea5e9"
+                />
               </LineChart>
             </ResponsiveContainer>
           </div>
@@ -1186,7 +1308,12 @@ function Dashboard({
                 <YAxis tick={{ fontSize: 10 }} />
                 <Tooltip />
                 <Legend />
-                <Line type="monotone" dataKey="outdoorKm" name="Distanz (km)" stroke="#6366f1" />
+                <Line
+                  type="monotone"
+                  dataKey="outdoorKm"
+                  name="Distanz (km)"
+                  stroke="#6366f1"
+                />
               </LineChart>
             </ResponsiveContainer>
           </div>
@@ -1210,14 +1337,22 @@ function Dashboard({
                 <YAxis tick={{ fontSize: 10 }} />
                 <Tooltip />
                 <Legend />
-                <Line type="monotone" dataKey="outdoorAvgSpeed" name="Ø km/h" stroke="#22c55e" />
+                <Line
+                  type="monotone"
+                  dataKey="outdoorAvgSpeed"
+                  name="Ø km/h"
+                  stroke="#22c55e"
+                />
               </LineChart>
             </ResponsiveContainer>
           </div>
         </div>
       </Section>
 
-      <Section title="1RM-Verlauf pro Übung (KW-aggregiert)" icon={<Dumbbell className="w-5 h-5" />}>
+      <Section
+        title="1RM-Verlauf pro Übung (KW-aggregiert)"
+        icon={<Dumbbell className="w-5 h-5" />}
+      >
         <label className="block mb-2">
           <span className="text-sm text-slate-600">Übung auswählen</span>
           <select
@@ -1243,7 +1378,12 @@ function Dashboard({
               <YAxis tick={{ fontSize: 10 }} />
               <Tooltip />
               <Legend />
-              <Line type="monotone" dataKey="oneRM" name="1RM (kg)" stroke="#3b82f6" />
+              <Line
+                type="monotone"
+                dataKey="oneRM"
+                name="1RM (kg)"
+                stroke="#3b82f6"
+              />
             </LineChart>
           </ResponsiveContainer>
         </div>
@@ -1278,12 +1418,16 @@ function Dashboard({
         </div>
       </Section>
 
-      <Section title="Zielerreichung (aktuelle Woche)" icon={<Target className="w-5 h-5" />}>
+      <Section
+        title="Zielerreichung (aktuelle Woche)"
+        icon={<Target className="w-5 h-5" />}
+      >
         <div className="grid md:grid-cols-2 gap-4">
           <div className="border rounded-xl p-4">
             <div className="text-sm text-slate-600">Trainingstage</div>
             <div className="text-2xl font-semibold">
-              {currentWeek.trainingDays} / {goals.weeklyTrainingDaysTarget} ({currentWeek.daysPct}%)
+              {currentWeek.trainingDays} / {goals.weeklyTrainingDaysTarget} (
+              {currentWeek.daysPct}%)
             </div>
             <div className="h-2 bg-slate-100 rounded-full mt-2">
               <div
@@ -1295,8 +1439,8 @@ function Dashboard({
           <div className="border rounded-xl p-4">
             <div className="text-sm text-slate-600">Cardio-Minuten</div>
             <div className="text-2xl font-semibold">
-              {currentWeek.cardioMinutes} / {goals.weeklyCardioMinutesTarget} ({currentWeek.cardioPct}
-              %)
+              {currentWeek.cardioMinutes} / {goals.weeklyCardioMinutesTarget} (
+              {currentWeek.cardioPct}%)
             </div>
             <div className="h-2 bg-slate-100 rounded-full mt-2">
               <div
@@ -1308,8 +1452,8 @@ function Dashboard({
           <div className="border rounded-xl p-4">
             <div className="text-sm text-slate-600">Outdoor-Tage</div>
             <div className="text-2xl font-semibold">
-              {currentWeek.outdoorDays} / {goals.weeklyOutdoorDaysTarget} ({currentWeek.outDaysPct}
-              %)
+              {currentWeek.outdoorDays} / {goals.weeklyOutdoorDaysTarget} (
+              {currentWeek.outDaysPct}%)
             </div>
             <div className="h-2 bg-slate-100 rounded-full mt-2">
               <div
@@ -1321,7 +1465,8 @@ function Dashboard({
           <div className="border rounded-xl p-4">
             <div className="text-sm text-slate-600">Outdoor-Kilometer</div>
             <div className="text-2xl font-semibold">
-              {currentWeek.outdoorKm} / {goals.weeklyOutdoorKmTarget} ({currentWeek.outKmPct}%)
+              {currentWeek.outdoorKm} / {goals.weeklyOutdoorKmTarget} (
+              {currentWeek.outKmPct}%)
             </div>
             <div className="h-2 bg-slate-100 rounded-full mt-2">
               <div
@@ -1336,6 +1481,7 @@ function Dashboard({
   );
 }
 
+// ====== Version-Banner (Info) ======
 function VersionBanner({
   version,
   latestVersion,
@@ -1346,7 +1492,6 @@ function VersionBanner({
   onReload: () => void;
 }) {
   const isUpToDate = version === latestVersion;
-
   return (
     <div
       className={`${
@@ -1386,24 +1531,26 @@ function VersionBanner({
   );
 }
 
+// ====== App ======
 export default function App() {
   useFixedBranding();
   useDoubleExitGuard(true);
 
   // gespeicherte Version holen (oder "0.0.0", wenn noch nie da gewesen)
-  const [storedVersion, setStoredVersion] = React.useState<string>(
-    localStorage.getItem(APP_VERSION_KEY) || "0.0.0"
-  );
+  const [storedVersion, setStoredVersion] = useState<string>(() => {
+    if (typeof window === "undefined") return "0.0.0";
+    return localStorage.getItem(APP_VERSION_KEY) || "0.0.0";
+  });
 
   // beim ersten Start lokale Version setzen
-  React.useEffect(() => {
+  useEffect(() => {
     const saved = localStorage.getItem(APP_VERSION_KEY);
     if (!saved) {
       localStorage.setItem(APP_VERSION_KEY, APP_VERSION);
       setStoredVersion(APP_VERSION);
     }
   }, []);
-  
+
   // Seed beim ersten Mal
   useEffect(() => {
     if (!localStorage.getItem(STORAGE_KEYS.SEEDED)) {
@@ -1415,10 +1562,16 @@ export default function App() {
     }
   }, []);
 
-  const [exercises, setExercises] = useLocalStorage<Exercise[]>(STORAGE_KEYS.EXERCISES, []);
+  const [exercises, setExercises] = useLocalStorage<Exercise[]>(
+    STORAGE_KEYS.EXERCISES,
+    []
+  );
   const [plans, setPlans] = useLocalStorage<Plan[]>(STORAGE_KEYS.PLANS, []);
   const [logs, setLogs] = useLocalStorage<LogEntry[]>(STORAGE_KEYS.LOGS, []);
-  const [goals, setGoals] = useLocalStorage<Goals>(STORAGE_KEYS.GOALS, defaultGoals);
+  const [goals, setGoals] = useLocalStorage<Goals>(
+    STORAGE_KEYS.GOALS,
+    defaultGoals
+  );
   const [tab, setTab] = useLocalStorage(STORAGE_KEYS.UI, { tab: "dashboard" });
 
   // Backups
@@ -1431,7 +1584,7 @@ export default function App() {
     } catch {
       return [];
     }
-  }, [tab.tab]); // einfache Aktualisierung
+  }, [tab.tab]);
 
   async function createBackup() {
     const meta = JSON.parse(localStorage.getItem(STORAGE_KEYS.BACKUPS) || "[]");
@@ -1443,7 +1596,9 @@ export default function App() {
     const now = new Date().toISOString();
     localStorage.setItem("tp_last_backup_at", now);
     setLastBackupAt(now);
-    window.dispatchEvent(new CustomEvent("tp_toast", { detail: "Backup angelegt" }));
+    window.dispatchEvent(
+      new CustomEvent("tp_toast", { detail: "Backup angelegt" })
+    );
   }
 
   function restoreBackup(name: string) {
@@ -1459,7 +1614,9 @@ export default function App() {
       setPlans(obj.plans || []);
       setLogs(obj.logs || []);
       setGoals(obj.goals || defaultGoals);
-      window.dispatchEvent(new CustomEvent("tp_toast", { detail: "Backup wiederhergestellt" }));
+      window.dispatchEvent(
+        new CustomEvent("tp_toast", { detail: "Backup wiederhergestellt" })
+      );
     } catch {
       alert("Backup konnte nicht gelesen werden");
     }
@@ -1470,7 +1627,9 @@ export default function App() {
       (m: any) => m.name !== name
     );
     localStorage.setItem(STORAGE_KEYS.BACKUPS, JSON.stringify(meta));
-    window.dispatchEvent(new CustomEvent("tp_toast", { detail: "Backup gelöscht" }));
+    window.dispatchEvent(
+      new CustomEvent("tp_toast", { detail: "Backup gelöscht" })
+    );
   }
 
   function downloadBackup(name: string) {
@@ -1486,13 +1645,11 @@ export default function App() {
     URL.revokeObjectURL(url);
   }
 
-  function addLog(entry: LogEntry) {
-    setLogs([entry, ...logs]);
-  }
-
   function exportJSON() {
     const data = { exercises, plans, logs, goals };
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+    const blob = new Blob([JSON.stringify(data, null, 2)], {
+      type: "application/json",
+    });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
@@ -1514,7 +1671,9 @@ export default function App() {
           setLogs(obj.logs);
           setGoals(obj.goals);
           window.dispatchEvent(
-            new CustomEvent("tp_toast", { detail: "Daten erfolgreich importiert" })
+            new CustomEvent("tp_toast", {
+              detail: "Daten erfolgreich importiert",
+            })
           );
         } else {
           alert("Ungültige Datei");
@@ -1528,103 +1687,97 @@ export default function App() {
   }
 
   return (
-  <div className="min-h-screen bg-slate-50 text-slate-900 pb-20">
-    {/* Versions- / Update-Info */}
-    <VersionBanner
-      version={storedVersion}
-      latestVersion={APP_VERSION}
-      onReload={() => {
-        localStorage.setItem(APP_VERSION_KEY, APP_VERSION);
-        location.reload();
-      }}
-    />
+    <div className="min-h-screen bg-slate-50 text-slate-900 pb-20">
+      {/* Info-Banner zur Version */}
+      <VersionBanner
+        version={storedVersion}
+        latestVersion={APP_VERSION}
+        onReload={() => {
+          localStorage.setItem(APP_VERSION_KEY, APP_VERSION);
+          location.reload();
+        }}
+      />
 
-    <div className="max-w-5xl mx-auto p-4 sm:p-6">
-      <header className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl sm:text-3xl font-bold flex items-center gap-3">
-          <span
-            className="inline-block"
-            dangerouslySetInnerHTML={{
-              __html: FIXED_FAVICON_SVG.replace(
-                "<svg",
-                '<svg width="28" height="28"'
-              ),
-            }}
-          />
-          {APP_NAME}
-        </h1>
+      <div className="max-w-5xl mx-auto p-4 sm:p-6">
+        <header className="flex items-center justify-between mb-6">
+          <h1 className="text-2xl sm:text-3xl font-bold flex items-center gap-3">
+            <span
+              className="inline-block"
+              dangerouslySetInnerHTML={{
+                __html: FIXED_FAVICON_SVG.replace(
+                  "<svg",
+                  '<svg width="28" height="28"'
+                ),
+              }}
+            />
+            {APP_NAME}
+          </h1>
 
-        {/* Desktop-Navigation */}
-        <div className="flex items-center gap-2">
-          <button
-            className={`px-3 py-2 rounded-xl ${
-              tab.tab === "dashboard"
-                ? "bg-white shadow-lg shadow-rose-200 border border-rose-300"
-                : "bg-slate-100"
-            }`}
-            onClick={() => setTab({ tab: "dashboard" })}
-          >
-            Dashboard
-          </button>
+          {/* Desktop-Navigation */}
+          <div className="flex items-center gap-2">
+            <button
+              className={`px-3 py-2 rounded-xl ${
+                tab.tab === "dashboard"
+                  ? "bg-white shadow-lg shadow-rose-200 border border-rose-300"
+                  : "bg-slate-100"
+              }`}
+              onClick={() => setTab({ tab: "dashboard" })}
+            >
+              Dashboard
+            </button>
+            <button
+              className={`px-3 py-2 rounded-xl ${
+                tab.tab === "training"
+                  ? "bg-white shadow-lg shadow-rose-200 border border-rose-300"
+                  : "bg-slate-100"
+              }`}
+              onClick={() => setTab({ tab: "training" })}
+            >
+              Training
+            </button>
+            <button
+              className={`px-3 py-2 rounded-xl ${
+                tab.tab === "exercises"
+                  ? "bg-white shadow-lg shadow-rose-200 border border-rose-300"
+                  : "bg-slate-100"
+              }`}
+              onClick={() => setTab({ tab: "exercises" })}
+            >
+              Übungen
+            </button>
+            <button
+              className={`px-3 py-2 rounded-xl ${
+                tab.tab === "plans"
+                  ? "bg-white shadow-lg shadow-rose-200 border border-rose-300"
+                  : "bg-slate-100"
+              }`}
+              onClick={() => setTab({ tab: "plans" })}
+            >
+              Pläne
+            </button>
+            <button
+              className={`px-3 py-2 rounded-xl ${
+                tab.tab === "goals"
+                  ? "bg-white shadow-lg shadow-rose-200 border border-rose-300"
+                  : "bg-slate-100"
+              }`}
+              onClick={() => setTab({ tab: "goals" })}
+            >
+              Ziele
+            </button>
+            <button
+              className={`px-3 py-2 rounded-xl ${
+                tab.tab === "backups"
+                  ? "bg-white shadow-lg shadow-rose-200 border border-rose-300"
+                  : "bg-slate-100"
+              }`}
+              onClick={() => setTab({ tab: "backups" })}
+            >
+              Backups
+            </button>
+          </div>
+        </header>
 
-          <button
-            className={`px-3 py-2 rounded-xl ${
-              tab.tab === "training"
-                ? "bg-white shadow-lg shadow-rose-200 border border-rose-300"
-                : "bg-slate-100"
-            }`}
-            onClick={() => setTab({ tab: "training" })}
-          >
-            Training
-          </button>
-
-          <button
-            className={`px-3 py-2 rounded-xl ${
-              tab.tab === "exercises"
-                ? "bg-white shadow-lg shadow-rose-200 border border-rose-300"
-                : "bg-slate-100"
-            }`}
-            onClick={() => setTab({ tab: "exercises" })}
-          >
-            Übungen
-          </button>
-
-          <button
-            className={`px-3 py-2 rounded-xl ${
-              tab.tab === "plans"
-                ? "bg-white shadow-lg shadow-rose-200 border border-rose-300"
-                : "bg-slate-100"
-            }`}
-            onClick={() => setTab({ tab: "plans" })}
-          >
-            Pläne
-          </button>
-
-          <button
-            className={`px-3 py-2 rounded-xl ${
-              tab.tab === "goals"
-                ? "bg-white shadow-lg shadow-rose-200 border border-rose-300"
-                : "bg-slate-100"
-            }`}
-            onClick={() => setTab({ tab: "goals" })}
-          >
-            Ziele
-          </button>
-
-          <button
-            className={`px-3 py-2 rounded-xl ${
-              tab.tab === "backups"
-                ? "bg-white shadow-lg shadow-rose-200 border border-rose-300"
-                : "bg-slate-100"
-            }`}
-            onClick={() => setTab({ tab: "backups" })}
-          >
-            Backups
-          </button>
-        </div>
-      </header>
-
-        
         {tab.tab === "dashboard" && (
           <Dashboard exercises={exercises} logs={logs} goals={goals} />
         )}
@@ -1637,7 +1790,12 @@ export default function App() {
               <div className="flex items-center gap-2">
                 <label className="px-3 py-2 rounded-xl bg-slate-100 cursor-pointer inline-flex items-center gap-2">
                   <Upload className="w-4 h-4" /> Import
-                  <input className="hidden" type="file" accept="application/json" onChange={importJSON} />
+                  <input
+                    className="hidden"
+                    type="file"
+                    accept="application/json"
+                    onChange={importJSON}
+                  />
                 </label>
                 <button
                   className="px-3 py-2 rounded-xl bg-slate-100 inline-flex items-center gap-2"
@@ -1655,7 +1813,9 @@ export default function App() {
               onAddLog={(entry) => setLogs([entry, ...logs])}
               onDonePlan={() => {
                 window.dispatchEvent(
-                  new CustomEvent("tp_toast", { detail: "Trainingsplan abgeschlossen" })
+                  new CustomEvent("tp_toast", {
+                    detail: "Trainingsplan abgeschlossen",
+                  })
                 );
                 setTab({ tab: "dashboard" });
               }}
@@ -1670,8 +1830,15 @@ export default function App() {
         )}
 
         {tab.tab === "plans" && (
-          <Section title="Trainingspläne" icon={<ClipboardList className="w-5 h-5" />}>
-            <PlansView exercises={exercises} plans={plans} setPlans={setPlans} />
+          <Section
+            title="Trainingspläne"
+            icon={<ClipboardList className="w-5 h-5" />}
+          >
+            <PlansView
+              exercises={exercises}
+              plans={plans}
+              setPlans={setPlans}
+            />
           </Section>
         )}
 
@@ -1682,12 +1849,16 @@ export default function App() {
         )}
 
         {tab.tab === "backups" && (
-          <Section title="Sicherungen" icon={<HardDriveDownload className="w-5 h-5" />}>
+          <Section
+            title="Sicherungen"
+            icon={<HardDriveDownload className="w-5 h-5" />}
+          >
             <BackupsView
-              data={{ exercises, plans, logs, goals }}
               onRestore={restoreBackup}
               onCreate={createBackup}
-              backups={JSON.parse(localStorage.getItem(STORAGE_KEYS.BACKUPS) || "[]")}
+              backups={JSON.parse(
+                localStorage.getItem(STORAGE_KEYS.BACKUPS) || "[]"
+              )}
               onDelete={deleteBackup}
               onDownload={downloadBackup}
               lastBackupAt={lastBackupAt}
@@ -1696,6 +1867,10 @@ export default function App() {
         )}
 
         <Toast />
+
+        <footer className="mt-8 text-xs text-slate-500">
+          Daten werden lokal gespeichert. Export/Import jederzeit möglich.
+        </footer>
       </div>
 
       {/* untere Tabbar für mobile Ansicht */}
@@ -1746,7 +1921,3 @@ export default function App() {
     </div>
   );
 }
-
-
-
-
