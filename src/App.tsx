@@ -1,3 +1,5 @@
+const APP_VERSION = "2025.02.15-1"; // bei neuem Deploy einfach hochzählen
+const APP_VERSION_KEY = "tp_app_version";
 import React, { useEffect, useMemo, useState } from "react";
 import {
   LineChart,
@@ -201,6 +203,20 @@ function Toast() {
   return (
     <div className="fixed bottom-16 left-1/2 -translate-x-1/2 px-3 py-2 rounded-xl bg-slate-900 text-white text-sm shadow">
       {msg}
+    </div>
+  );
+}
+
+function UpdateBanner({ onReload }: { onReload: () => void }) {
+  return (
+    <div className="fixed top-2 left-1/2 -translate-x-1/2 z-50 bg-rose-600 text-white px-4 py-2 rounded-xl shadow flex items-center gap-3">
+      <span>Neue Version verfügbar</span>
+      <button
+        onClick={onReload}
+        className="bg-white/15 hover:bg-white/25 px-3 py-1 rounded-lg text-sm"
+      >
+        Jetzt neu laden
+      </button>
     </div>
   );
 }
@@ -1269,6 +1285,22 @@ function Dashboard({
 export default function App() {
   useFixedBranding();
 
+  const [showUpdate, setShowUpdate] = React.useState(false);
+
+  React.useEffect(() => {
+    const saved = localStorage.getItem(APP_VERSION_KEY);
+    if (!saved) {
+      // erstes Mal → aktuelle Version merken
+      localStorage.setItem(APP_VERSION_KEY, APP_VERSION);
+    } else if (saved !== APP_VERSION) {
+      // es gibt eine neuere Version im Code → Hinweis anzeigen
+      setShowUpdate(true);
+      // aber NICHT sofort überschreiben – erst nach Reload
+    }
+  }, []);
+
+  // ... dein bisheriger Code
+
   // Seed beim ersten Mal
   useEffect(() => {
     if (!localStorage.getItem(STORAGE_KEYS.SEEDED)) {
@@ -1458,6 +1490,15 @@ export default function App() {
           </div>
         </header>
 
+        {showUpdate && (
+  <UpdateBanner
+    onReload={() => {
+      localStorage.setItem(APP_VERSION_KEY, APP_VERSION);
+      location.reload();
+    }}
+  />
+)}
+        
         {tab.tab === "dashboard" && (
           <Dashboard exercises={exercises} logs={logs} goals={goals} />
         )}
@@ -1579,3 +1620,4 @@ export default function App() {
     </div>
   );
 }
+
