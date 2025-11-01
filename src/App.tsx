@@ -1,5 +1,5 @@
-const APP_VERSION = "2025.02.15-1"; // bei neuem Deploy einfach hochzählen
-const APP_VERSION_KEY = "tp_app_version";
+const APP_VERSION = "1.3.2";               // <– hier später einfach hochzählen
+const APP_VERSION_KEY = "kraftwerk_version";
 import React, { useEffect, useMemo, useState } from "react";
 import {
   LineChart,
@@ -1282,8 +1282,71 @@ function Dashboard({
   );
 }
 
+function VersionBanner({
+  version,
+  latestVersion,
+  onReload,
+}: {
+  version: string;
+  latestVersion: string;
+  onReload: () => void;
+}) {
+  const isUpToDate = version === latestVersion;
+
+  return (
+    <div
+      className={`${
+        isUpToDate
+          ? "bg-emerald-50 border-emerald-300 text-emerald-800"
+          : "bg-amber-50 border-amber-300 text-amber-800"
+      } border px-4 py-2 rounded-xl mb-4 flex items-center justify-between shadow-sm`}
+    >
+      <span className="font-medium">
+        {isUpToDate ? (
+          <>✅ KraftWerk v{latestVersion} – Aktuellste Version installiert</>
+        ) : (
+          <>⚠️ Neue Version verfügbar (v{latestVersion})</>
+        )}
+      </span>
+
+      {isUpToDate ? (
+        <button
+          onClick={() =>
+            window.dispatchEvent(
+              new CustomEvent("tp_toast", { detail: "App ist aktuell" })
+            )
+          }
+          className="text-sm font-semibold text-emerald-700 hover:underline"
+        >
+          Neu prüfen
+        </button>
+      ) : (
+        <button
+          onClick={onReload}
+          className="text-sm font-semibold text-amber-700 hover:underline"
+        >
+          Jetzt aktualisieren
+        </button>
+      )}
+    </div>
+  );
+}
+
 export default function App() {
   useFixedBranding();
+
+  // Version aus localStorage holen (oder "0.0.0", falls noch nie gespeichert)
+  const [storedVersion, setStoredVersion] = React.useState<string>(
+    localStorage.getItem(APP_VERSION_KEY) || "0.0.0"
+  );
+
+  // beim ersten Mount: wenn nichts da → aktuelle Version speichern
+  React.useEffect(() => {
+    if (!localStorage.getItem(APP_VERSION_KEY)) {
+      localStorage.setItem(APP_VERSION_KEY, APP_VERSION);
+      setStoredVersion(APP_VERSION);
+    }
+  }, []);
 
   const [showUpdate, setShowUpdate] = React.useState(false);
 
@@ -1425,16 +1488,17 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 pb-20">
-      <div className="max-w-5xl mx-auto p-4 sm:p-6">
-        <header className="flex items-center justify-between mb-6">
-          <h1 className="text-2xl sm:text-3xl font-bold flex items-center gap-3">
-            <span
-              className="inline-block"
-              dangerouslySetInnerHTML={{
-                __html: FIXED_FAVICON_SVG.replace("<svg", "<svg width='30' height='30'"),
-              }}
-            />
+  <div className="min-h-screen bg-slate-50 text-slate-900 pb-20">
+    {/* Versions-Info / Update-Hinweis */}
+    <VersionBanner
+      version={storedVersion}
+      latestVersion={APP_VERSION}
+      onReload={() => {
+        // wenn Nutzer auf "Jetzt aktualisieren" klickt:
+        localStorage.setItem(APP_VERSION_KEY, APP_VERSION);
+        location.reload();
+      }}
+    />
             {APP_NAME}
           </h1>
           {/* Desktop-Navigation (optional) */}
@@ -1620,4 +1684,5 @@ export default function App() {
     </div>
   );
 }
+
 
