@@ -1573,7 +1573,29 @@ export default function App() {
     defaultGoals
   );
   const [tab, setTab] = useLocalStorage(STORAGE_KEYS.UI, { tab: "dashboard" });
+// sorgt dafür, dass die Standard-Kraft- und Cardio-Übungen wirklich vorhanden sind
+const didFixExercisesRef = React.useRef(false);
 
+React.useEffect(() => {
+  if (didFixExercisesRef.current) return;
+
+  // 1. aktuelle Liste aus dem Speicher
+  const current = exercises || [];
+
+  // 2. welche aus dem Seed fehlen?
+  const missing = seedExercises.filter(
+    (seedEx) => !current.some((ex) => ex.name === seedEx.name)
+  );
+
+  // 3. wenn was fehlt → ergänzen
+  if (missing.length > 0) {
+    setExercises([...current, ...missing]);
+  }
+
+  // nur ein einziges Mal ausführen
+  didFixExercisesRef.current = true;
+}, [exercises, setExercises]);
+  
   // Backups
   const [lastBackupAt, setLastBackupAt] = useState(
     () => localStorage.getItem("tp_last_backup_at") || ""
@@ -1921,3 +1943,4 @@ export default function App() {
     </div>
   );
 }
+
