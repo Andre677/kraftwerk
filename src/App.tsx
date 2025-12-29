@@ -1709,7 +1709,7 @@ React.useEffect(() => {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 pb-20">
+    <div className="min-h-[100dvh] overflow-x-hidden bg-slate-50 text-slate-900 pb-20">
       {/* Info-Banner zur Version */}
       <VersionBanner
         version={storedVersion}
@@ -1736,7 +1736,7 @@ React.useEffect(() => {
           </h1>
 
           {/* Desktop-Navigation */}
-          <div className="flex items-center gap-2">
+          <div className="hidden sm:flex items-center gap-2">
             <button
               className={`px-3 py-2 rounded-xl ${
                 tab.tab === "dashboard"
@@ -1943,4 +1943,5 @@ React.useEffect(() => {
     </div>
   );
 }
+
 
